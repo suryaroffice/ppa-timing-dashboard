@@ -1,0 +1,5 @@
+pandas
+pytest
+# added when the dashboard UI exists:
+# streamlit
+# plotly

@@ -1,0 +1,61 @@
+# SAMPLE DATA: hand-written for parser development.
+# Modeled on the OpenROAD/ORFS report layout; NOT produced by a real tool run.
+==========================================================================
+report_checks -path_delay max
+--------------------------------------------------------------------------
+Startpoint: _412_ (rising edge-triggered flip-flop clocked by core_clock)
+Endpoint: _455_ (rising edge-triggered flip-flop clocked by core_clock)
+Path Group: core_clock
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock core_clock (rise edge)
+   0.00    0.00   clock network delay (ideal)
+   0.00    0.00 ^ _412_/CK (DFF_X1)
+   0.31    0.31 v _412_/Q (DFF_X1)
+   1.14   1.45 ^ _301_/ZN (XOR2_X1)
+          1.45   data arrival time
+
+   1.50   1.50   clock core_clock (rise edge)
+   0.00   1.50   clock network delay (ideal)
+          1.50 ^ _455_/CK (DFF_X1)
+  -0.03   1.47   library setup time
+          1.47   data required time
+---------------------------------------------------------
+          1.47   data required time
+        - 1.45   data arrival time
+---------------------------------------------------------
+         0.02   slack (MET)
+
+
+==========================================================================
+report_tns
+--------------------------------------------------------------------------
+tns 0.00
+
+==========================================================================
+report_wns
+--------------------------------------------------------------------------
+wns 0.00
+
+==========================================================================
+report_worst_slack
+--------------------------------------------------------------------------
+worst slack 0.02
+
+==========================================================================
+report_power
+--------------------------------------------------------------------------
+Group                  Internal  Switching    Leakage      Total
+                          Power      Power      Power      Power (Watts)
+----------------------------------------------------------------
+Sequential             1.68e-04   1.23e-05   6.00e-07   1.81e-04
+Combinational          1.12e-04   2.87e-05   6.00e-07   1.41e-04
+----------------------------------------------------------------
+Total                  2.80e-04   4.10e-05   1.20e-06   3.22e-04 100.0%
+
+==========================================================================
+report_design_area
+--------------------------------------------------------------------------
+Design area 441 u^2 7% utilization.

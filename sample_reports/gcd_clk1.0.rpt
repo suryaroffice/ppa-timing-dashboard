@@ -1,0 +1,61 @@
+# SAMPLE DATA: hand-written for parser development.
+# Modeled on the OpenROAD/ORFS report layout; NOT produced by a real tool run.
+==========================================================================
+report_checks -path_delay max
+--------------------------------------------------------------------------
+Startpoint: _412_ (rising edge-triggered flip-flop clocked by core_clock)
+Endpoint: _455_ (rising edge-triggered flip-flop clocked by core_clock)
+Path Group: core_clock
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock core_clock (rise edge)
+   0.00    0.00   clock network delay (ideal)
+   0.00    0.00 ^ _412_/CK (DFF_X1)
+   0.31    0.31 v _412_/Q (DFF_X1)
+   1.07   1.38 ^ _301_/ZN (XOR2_X1)
+          1.38   data arrival time
+
+   1.00   1.00   clock core_clock (rise edge)
+   0.00   1.00   clock network delay (ideal)
+          1.00 ^ _455_/CK (DFF_X1)
+  -0.03   0.97   library setup time
+          0.97   data required time
+---------------------------------------------------------
+          0.97   data required time
+        - 1.38   data arrival time
+---------------------------------------------------------
+        -0.41   slack (VIOLATED)
+
+
+==========================================================================
+report_tns
+--------------------------------------------------------------------------
+tns -9.70
+
+==========================================================================
+report_wns
+--------------------------------------------------------------------------
+wns -0.41
+
+==========================================================================
+report_worst_slack
+--------------------------------------------------------------------------
+worst slack -0.41
+
+==========================================================================
+report_power
+--------------------------------------------------------------------------
+Group                  Internal  Switching    Leakage      Total
+                          Power      Power      Power      Power (Watts)
+----------------------------------------------------------------
+Sequential             2.58e-04   1.92e-05   7.00e-07   2.78e-04
+Combinational          1.72e-04   4.48e-05   7.00e-07   2.18e-04
+----------------------------------------------------------------
+Total                  4.30e-04   6.40e-05   1.40e-06   4.95e-04 100.0%
+
+==========================================================================
+report_design_area
+--------------------------------------------------------------------------
+Design area 470 u^2 8% utilization.
