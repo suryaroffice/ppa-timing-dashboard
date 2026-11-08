@@ -10,6 +10,7 @@ Formats handled (verify against real files from your own runs):
   report_tns          ->  "tns -4.20"
   report_worst_slack  ->  "worst slack -0.41"
   report_design_area  ->  "Design area 438 u^2 7% utilization."
+  yosys stat          ->  "Chip area for module '\\top': 305.368000"  (fallback)
   report_power        ->  table with a "Total" row, in Watts
   report_checks       ->  "Startpoint: ...", "Endpoint: ...", "-0.41   slack (VIOLATED)"
 
@@ -24,6 +25,7 @@ import re
 from pathlib import Path
 from typing import Optional, Union
 
+import numpy as np
 import pandas as pd
 
 NAN = float("nan")
@@ -37,6 +39,8 @@ _RE_WORST_SLACK = re.compile(
 _RE_AREA = re.compile(
     rf"Design area\s+({_NUM})\s+u\^2\s+({_NUM})%\s+utilization"
 )
+# Yosys `stat -liberty` output: synthesized cell area (um^2 for nangate45).
+_RE_YOSYS_AREA = re.compile(rf"Chip area for module\s+'[^']*':\s+({_NUM})")
 _RE_SLACK_LINE = re.compile(rf"^\s*({_NUM})\s+slack\s+\((?:MET|VIOLATED)\)", re.M)
 _RE_STARTPOINT = re.compile(r"^Startpoint:\s*(\S+)", re.M)
 _RE_ENDPOINT = re.compile(r"^Endpoint:\s*(\S+)", re.M)
@@ -75,9 +79,16 @@ def parse_report(
 
     area = NAN
     util = NAN
+    area_source = None
     m = _RE_AREA.search(text)
     if m:
         area, util = float(m.group(1)), float(m.group(2))
+        area_source = "design_area"  # OpenROAD report_design_area
+    else:
+        m = _RE_YOSYS_AREA.search(text)
+        if m:
+            area = float(m.group(1))
+            area_source = "yosys_stat"  # synthesized cell area, no placement
 
     p_int = p_sw = p_leak = p_total = NAN
     m = _RE_POWER_TOTAL.search(text)
@@ -99,6 +110,7 @@ def parse_report(
         ),
         "power_leakage_mw": p_leak,
         "area_um2": area,
+        "area_source": area_source,
         "utilization_pct": util,
     }
 
@@ -124,8 +136,13 @@ def build_dataframe(paths) -> pd.DataFrame:
         return df
     # Met if the real worst slack is non-negative; else fall back to WNS.
     basis = df["worst_slack_ns"].where(df["worst_slack_ns"].notna(), df["wns_ns"])
+    # A printed "-0.00" is a slightly negative value that rounded to zero, so
+    # it is a failing run even though -0.0 >= 0. Check the sign bit explicitly.
+    negative = pd.Series(
+        np.signbit(basis.fillna(0).to_numpy(dtype=float)), index=basis.index
+    )
     # Nullable boolean: unknown (no slack data at all) stays <NA>, not False.
-    df["timing_met"] = (basis >= 0).astype("boolean").mask(basis.isna())
+    df["timing_met"] = ((basis >= 0) & ~negative).astype("boolean").mask(basis.isna())
     # First-order estimate: the period the design could close at is
     # (period - worst slack). Rough, since it ignores re-optimization.
     achievable = df["clock_period_ns"] - df["worst_slack_ns"]

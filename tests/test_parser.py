@@ -124,3 +124,58 @@ def test_wns_gets_worse_as_clock_period_shrinks():
 def test_empty_input_returns_empty_dataframe():
     assert isinstance(build_dataframe([]), pd.DataFrame)
     assert build_dataframe([]).empty
+
+
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
+YOSYS_STAT = "=== top ===\n   Chip area for module '\\top': 305.368000\n"
+
+
+def test_real_opensta_output_format():
+    # Fixture is output captured from a real OpenSTA run (adder16 @ 1.0 ns).
+    text = (FIXTURES / "opensta_adder16_clk1.0.txt").read_text()
+    r = parse_report(text, clock_period_ns=1.0)
+    assert r["wns_ns"] == 0.0
+    assert r["tns_ns"] == 0.0
+    assert r["worst_slack_ns"] == pytest.approx(0.30)
+    assert r["worst_path_start"] == "_202_"
+    assert r["worst_path_end"] == "_200_"
+    assert r["power_total_mw"] == pytest.approx(0.307)
+    assert r["power_dynamic_mw"] == pytest.approx(0.3009)
+    assert r["power_leakage_mw"] == pytest.approx(0.00589)
+    assert math.isnan(r["area_um2"])  # OpenSTA reports no area
+    assert r["area_source"] is None
+
+
+def test_area_from_yosys_stat_when_no_design_area():
+    r = parse_report("wns max 0.00\n" + YOSYS_STAT)
+    assert r["area_um2"] == pytest.approx(305.368)
+    assert r["area_source"] == "yosys_stat"
+    assert math.isnan(r["utilization_pct"])
+
+
+def test_design_area_line_takes_precedence_over_yosys():
+    r = parse_report(MET_SNIPPET + YOSYS_STAT)
+    assert r["area_um2"] == pytest.approx(438)
+    assert r["area_source"] == "design_area"
+
+
+def test_negative_zero_slack_counts_as_failing(tmp_path):
+    # OpenSTA prints "-0.00" for a slightly negative value that rounds to zero.
+    f = tmp_path / "d_clk0.7.rpt"
+    f.write_text("tns max -0.00\nwns max -0.00\nworst slack max -0.00\n")
+    df = build_dataframe([f])
+    assert bool(df.loc[0, "timing_met"]) is False
+
+
+def test_positive_zero_slack_counts_as_met(tmp_path):
+    f = tmp_path / "d_clk0.7.rpt"
+    f.write_text("tns max 0.00\nwns max 0.00\nworst slack max 0.00\n")
+    df = build_dataframe([f])
+    assert bool(df.loc[0, "timing_met"]) is True
+
+
+def test_no_slack_data_leaves_timing_met_unknown(tmp_path):
+    f = tmp_path / "d_clk1.0.rpt"
+    f.write_text("nothing useful here\n")
+    df = build_dataframe([f])
+    assert pd.isna(df.loc[0, "timing_met"])

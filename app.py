@@ -41,15 +41,30 @@ st.caption(
     "Worst slack shows the real margin. WNS is clamped at 0 when timing is met, "
     "so it only goes negative on failing runs. TNS sums every failing path."
 )
-fig = px.line(
-    d,
-    x="clock_period_ns",
-    y=["worst_slack_ns", "wns_ns", "tns_ns"],
-    markers=True,
-    labels={"clock_period_ns": "Clock period (ns)", "value": "Slack (ns)", "variable": "Metric"},
-)
-fig.add_hline(y=0, line_dash="dash", line_color="gray")
-st.plotly_chart(fig, use_container_width=True)
+slack_col, tns_col = st.columns(2)
+with slack_col:
+    st.markdown("**Worst slack and WNS (ns)**")
+    fig = px.line(
+        d,
+        x="clock_period_ns",
+        y=["worst_slack_ns", "wns_ns"],
+        markers=True,
+        labels={"clock_period_ns": "Clock period (ns)", "value": "Slack (ns)", "variable": ""},
+    )
+    fig.add_hline(y=0, line_dash="dash", line_color="gray")
+    st.plotly_chart(fig, use_container_width=True)
+with tns_col:
+    # Separate chart: TNS is a sum over many paths, so its scale dwarfs the others.
+    st.markdown("**Total negative slack, TNS (ns)**")
+    fig_tns = px.line(
+        d,
+        x="clock_period_ns",
+        y="tns_ns",
+        markers=True,
+        labels={"clock_period_ns": "Clock period (ns)", "tns_ns": "TNS (ns)"},
+    )
+    fig_tns.add_hline(y=0, line_dash="dash", line_color="gray")
+    st.plotly_chart(fig_tns, use_container_width=True)
 
 left, right = st.columns(2)
 with left:
@@ -64,6 +79,10 @@ with left:
     st.plotly_chart(fig_p, use_container_width=True)
 with right:
     st.subheader("Area vs clock period")
+    st.caption(
+        "Area is synthesized cell area from Yosys when no placed-design area is "
+        "available. Synthesis isn't timing-driven here, so it stays flat across periods."
+    )
     fig_a = px.line(
         d,
         x="clock_period_ns",
